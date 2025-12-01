@@ -13,7 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Este app precisa acessar sua localização para rastrear entregas em tempo real."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +24,30 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ebsbalbino.logitrackapp",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir que o app use sua localização para rastrear entregas."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5db97d14-f3eb-44ec-9560-af90cb6e4394"
+      }
+    },
+    "owner": "ebsbalbino"
   }
 }

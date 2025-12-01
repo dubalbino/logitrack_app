@@ -1,7 +1,9 @@
+import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
-import Modal from 'react-native-modal'; // Importar react-native-modal
-import { Picker } from '@react-native-picker/picker'; // Nova importação para Picker
+import Modal from 'react-native-modal';
+import { Picker } from '@react-native-picker/picker';
 import { supabase } from '../lib/supabase';
+import { locationService } from '../services/locationService';
 
 interface Delivery {
   id: string;
@@ -24,7 +26,6 @@ const DeliveryCard = ({ delivery, onPress }: { delivery: Delivery, onPress: () =
 
   let isLate = false;
   if (delivery.situacao_pedido !== 'entrega_realizada') {
-    // Compara as strings de data YYYY-MM-DD
     isLate = deliveryDateString < todayString;
   }
 
@@ -54,6 +55,24 @@ const DeliveryCard = ({ delivery, onPress }: { delivery: Delivery, onPress: () =
       <Text style={deliveryCardStyles.description}>{delivery.descricao_compra}</Text>
       <Text style={deliveryCardStyles.date}>Pedido em: {new Date(delivery.data_pedido).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
       <Text style={deliveryCardStyles.date}>Previsão: {new Date(delivery.previsao_entrega).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</Text>
+      
+      {delivery.situacao_pedido === 'pronto_envio' && (
+        <TouchableOpacity 
+          style={{ backgroundColor: '#007AFF', padding: 12, borderRadius: 8, marginTop: 10 }}
+          onPress={async (e) => {
+            e.stopPropagation();
+            Alert.alert('Teste', 'Iniciando rastreamento...');
+            const success = await locationService.startTracking(delivery.id);
+            if (success) {
+              Alert.alert('Sucesso!', 'Rastreamento iniciado! Verifique o console e o Supabase.');
+            } else {
+              Alert.alert('Erro', 'Não conseguiu iniciar rastreamento.');
+            }
+          }}
+        >
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>🚚 TESTAR RASTREAMENTO</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -63,10 +82,9 @@ export default function DeliveriesScreen() {
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const [user, setUser] = useState<any>(null); // Adicionado para armazenar o usuário logado
-  const [entregadorId, setEntregadorId] = useState<string | null>(null); // Adicionado para armazenar o ID do entregador
+  const [user, setUser] = useState<any>(null);
+  const [entregadorId, setEntregadorId] = useState<string | null>(null);
 
-  // Efeito para carregar as entregas e configurar a subscription em tempo real
   useEffect(() => {
     const setup = async () => {
       setLoading(true);
@@ -104,7 +122,7 @@ export default function DeliveriesScreen() {
         return;
       }
       setEntregadorId(entregadorData.id);
-      await fetchDeliveries(entregadorData.id); // Chamar fetchDeliveries com o ID do entregador
+      await fetchDeliveries(entregadorData.id);
 
       const subscription = supabase
         .channel('public:entregas')
@@ -114,10 +132,10 @@ export default function DeliveriesScreen() {
             event: '*', 
             schema: 'public', 
             table: 'entregas',
-            filter: `entregador_id=eq.${entregadorData.id}` // Adicionando filtro aqui!
+            filter: `entregador_id=eq.${entregadorData.id}`
           },
           (payload) => {
-            fetchDeliveries(entregadorData.id); // Recarrega as entregas
+            fetchDeliveries(entregadorData.id);
           }
         )
         .subscribe();
@@ -132,7 +150,6 @@ export default function DeliveriesScreen() {
 
   const fetchDeliveries = async (currentEntregadorId: string) => {
     try {
-      // setLoading(true); // Removido para evitar piscar na atualização em tempo real
       if (!currentEntregadorId) {
         return;
       }
@@ -147,7 +164,6 @@ export default function DeliveriesScreen() {
       }
 
       if (data) {
-        // Ordenar as entregas por previsao_entrega
         const sortedDeliveries = (data as Delivery[]).sort((a, b) => {
           const dateA = new Date(a.previsao_entrega).getTime();
           const dateB = new Date(b.previsao_entrega).getTime();
@@ -201,7 +217,7 @@ export default function DeliveriesScreen() {
           isVisible={isModalVisible}
           onClose={closeDeliveryDetails}
           delivery={selectedDelivery}
-          onUpdateDelivery={() => fetchDeliveries(entregadorId!)} // Passar a função de atualização com o ID do entregador
+          onUpdateDelivery={() => fetchDeliveries(entregadorId!)}
         />
       )}
     </View>
@@ -210,11 +226,11 @@ export default function DeliveriesScreen() {
 
 const deliveryCardStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#e0e0e0', // Fundo cinza claro
+    backgroundColor: '#e0e0e0',
     borderRadius: 10,
     padding: 15,
     marginBottom: 10,
-    shadowColor: '#000', // Sombra projetada
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -223,74 +239,73 @@ const deliveryCardStyles = StyleSheet.create({
   deliveryNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333', // Cinza escuro para contraste
+    color: '#333',
     marginBottom: 5,
   },
   status: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
-    color: '#555', // Cinza médio para contraste
+    color: '#555',
   },
   address: {
     fontSize: 14,
-    color: '#777', // Cinza para contraste
+    color: '#777',
     marginBottom: 2,
   },
   description: {
     fontSize: 14,
-    color: '#777', // Cinza para contraste
+    color: '#777',
     marginBottom: 5,
   },
   date: {
     fontSize: 12,
-    color: '#999', // Cinza claro para contraste
+    color: '#999',
     textAlign: 'right',
   },
   completedStatus: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#007BFF', // Um azul para concluído
+    color: '#007BFF',
     marginBottom: 5,
   },
   lateStatus: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#D9534F', // Um vermelho mais suave
+    color: '#D9534F',
     marginBottom: 5,
   },
   onTimeStatus: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#5CB85C', // Um verde mais suave
+    color: '#5CB85C',
     marginBottom: 5,
   },
 });
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 15,
-    backgroundColor: '#6a0dad', // Roxo principal da tela de login
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#6a0dad', // Roxo principal
+    backgroundColor: '#000000',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#fff', // Branco para contraste
+    color: '#fff',
   },
   title: {
-    fontSize: 28, // Aumentado um pouco para dar mais destaque
+    fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
-    color: '#fff', // Branco para contraste
+    color: '#fff',
   },
   flatListContent: {
     paddingBottom: 10,
@@ -299,17 +314,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
-    color: '#fff', // Branco para contraste
+    color: '#fff',
   },
 });
-
-import React, { useEffect, useState } from 'react';
 
 interface DeliveryDetailsModalProps {
   isVisible: boolean;
   onClose: () => void;
   delivery: Delivery;
-  onUpdateDelivery: () => void; // Nova prop para atualizar a lista de entregas
+  onUpdateDelivery: () => void;
 }
 
 const DeliveryDetailsModal = ({ isVisible, onClose, delivery, onUpdateDelivery }: DeliveryDetailsModalProps) => {
@@ -321,9 +334,17 @@ const DeliveryDetailsModal = ({ isVisible, onClose, delivery, onUpdateDelivery }
 
   const handleUpdateStatus = async () => {
     try {
+      const updates: any = { situacao_pedido: selectedStatus };
+      
+      // Se mudou para "entrega_realizada" ou "entrega_sem_sucesso", desativar tracking
+      if (selectedStatus === 'entrega_realizada' || selectedStatus === 'entrega_sem_sucesso') {
+        updates.tracking_ativo = false;
+        updates.data_entrega = new Date().toISOString();
+      }
+      
       const { error } = await supabase
         .from('entregas')
-        .update({ situacao_pedido: selectedStatus })
+        .update(updates)
         .eq('id', delivery.id);
 
       if (error) {
@@ -331,7 +352,7 @@ const DeliveryDetailsModal = ({ isVisible, onClose, delivery, onUpdateDelivery }
       }
 
       Alert.alert('Sucesso', 'Status da entrega atualizado com sucesso!');
-      onUpdateDelivery(); // Chamar a função para atualizar a lista na tela principal
+      onUpdateDelivery();
       onClose();
     } catch (error: any) {
       Alert.alert('Erro', `Erro ao atualizar status: ${error.message}`);
@@ -437,7 +458,7 @@ const modalStyles = StyleSheet.create({
   },
   updateButton: {
     marginTop: 10,
-    backgroundColor: '#4CAF50', // Um verde para o botão de atualização
+    backgroundColor: '#4CAF50',
     padding: 12,
     borderRadius: 8,
     width: '90%',
@@ -450,7 +471,7 @@ const modalStyles = StyleSheet.create({
   },
   closeButton: {
     marginTop: 10,
-    backgroundColor: '#6a0dad',
+    backgroundColor: '#000000',
     padding: 12,
     borderRadius: 8,
     width: '90%',
